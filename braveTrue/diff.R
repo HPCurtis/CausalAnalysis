@@ -60,23 +60,41 @@ diff_in_diff <- (poa_after-poa_before)-(fl_after-fl_before)
 diff_in_diff
 
 # Bayesian models
-fit <- brm(deposits ~ poa*jul, data=data, chain  = 2, core = 2)
+fit <- brm(deposits ~ poa*jul, data=data, chain  = 2, core = 2, warmup = 2000,
+           iter = 20000,
+           control = list(adapt_delta = 0.9),
+           save_pars = save_pars(all = TRUE))
+
 fit <- add_criterion(fit, c("loo"))
 
 # Plot MCMC Chains and posteriors
 plot(fit)
 
-# Fit the hurdle mdoels.
-fit_lnhurdle <- brm(bf(deposits ~ poa*jul),  hurdle_lognormal(), data = data, chain = 2, core = 2)
+
+# Fit the hurdle models.
+fit_lnhurdle <- brm(deposits ~ poa*jul, family =  hurdle_lognormal(), data = data, chain = 2, core = 2, warmup = 2000,
+                    iter = 20000, save_pars = save_pars(all = TRUE) )
+
 fit_lnhurdle <- add_criterion(fit_lnhurdle, c("loo"))
 plot(fit_lnhurdle)
 
 # hurdle model whilst modelling the zeros values.
-fit_lnhurdlehu <- brm(bf(deposits ~ poa*jul, hu ~ poa*jul),  hurdle_lognormal(), data=data, chain = 2, core = 2)
+fit_lnhurdlehu <- brm(bf(deposits ~ poa * jul, hu ~ poa * jul),
+                          family = hurdle_lognormal(),
+                          data = data,
+                          chains = 2,
+                          cores = 2,
+                          iter = 20000,
+                          control = list(adapt_delta = 0.9),
+                          save_pars = save_pars(all = TRUE))
+
+# Call once model above has been fit
+library(bridgesampling)
+
 fit_lnhurdlehu <- add_criterion(fit_lnhurdlehu, c("loo"))
 plot(fit_lnhurdlehu)
 
-# sumarry result outputs of coefficients
+# summary result outputs of coefficients
 summary(fit)
 summary(fit_lnhurdle)
 summary(fit_lnhurdlehu)
@@ -123,9 +141,12 @@ pp_check(fit_lnhurdlehu ,
 
 # Compare model remvmbe this not useful to causal inquisition but does 
 # show the point that normal model is poor for the data analysed.
-loo_compare(fit, fit_lnhurdle, fit_lnhurdlehu)
+loo_compare(fit, fit_lnhurdlehu)
 
+margLogLik_n <- bridge_sampler(fit, silent = TRUE)
 
+margLogLik_ln_hu <- bridge_sampler(fit_lnhurdlehu, silent = TRUE)
+bayes_factor(margLogLik_n, margLogLik_ln_hu)
 
 
 
@@ -173,6 +194,10 @@ posterior_predict_hurdle_gaussian <- function(i, prep, ...) {
 }
 
 pp_check(fit_lnhurdle)
+
+
+
+
 
 
 # Generate code to run stan model with log_likelihood
